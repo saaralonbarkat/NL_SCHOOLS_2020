@@ -1,0 +1,480 @@
+---
+title: "Replication of results"
+subtitle: '"Human-AI Interactions in Public Sector Decision-Making"'
+author: "Saar Alon-Barkat"
+date: "January 2022"
+output:
+  html_document:
+    theme: flatly
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+      toc_depth: 3
+---
+
+
+
+```{r set-global-options, echo = FALSE}
+knitr::opts_chunk$set(eval = TRUE, 
+                      echo = TRUE, 
+                      message=FALSE,
+                      warning = FALSE,
+                      cache = FALSE,
+                      include = TRUE,
+                      collapse = FALSE,
+                      dependson = NULL,
+                      engine = "R", #  Chunks will always have R code, unless noted
+                      error = TRUE)
+```
+
+```{r}
+library(tidyverse) # version 1.3.1
+library(gtsummary) # version 1.4.1
+library(sjPlot) # version 2.8.7
+```
+
+
+
+# Data preparations
+
+
+Import datasets (unfiltered) for studies 1,2,3. 
+```{r}
+study1_unfiltered <-
+  read_csv("data_for_publication/study1_unfiltered.csv")
+
+study2_unfiltered <-
+  read_csv("data_for_publication/study2_unfiltered.csv")
+
+study3 <- read_csv("data_for_publication/study3.csv")
+```
+
+
+
+Filtering of Participants who failed the attention check or completed the questionnaire in less than three minutes (studies 1 & 2). 
+```{r}
+study1 <- study1_unfiltered %>%
+  filter(IMC == 1, timer.minutes >= 3)
+
+study2 <- study2_unfiltered %>%
+  filter(IMC == 1, timer.minutes >= 3)
+
+```
+
+
+Creating pooled dataset for studies 1 & 2
+
+```{r}
+
+pooled <- study1 %>%
+  full_join(study2) 
+```
+
+
+Participants not of Dutch descent (excluded from the analysis of selective adherence hypotheses - H2 & H3).
+```{r}
+study2.selective <- study2 %>%
+  filter(excluded.selective == 0)
+
+study3.selective <- study3 %>%
+  filter(excluded.selective == 0)
+
+```
+
+
+<br>
+
+
+# Datasets and variables
+
+**study 1**
+```{r}
+study1 %>% glimpse()
+```
+
+<br>
+
+
+**Study 2**
+```{r}
+study2 %>% glimpse()
+```
+<br>
+
+**Study 3**
+```{r}
+study3 %>% glimpse()
+```
+
+<br>
+
+# Main analyses
+
+
+<br>
+
+
+## Study 1
+
+### Table 1
+
+```{r}
+mod1 <- glm(follow.advice ~ advice.algorithm,
+            family = "binomial",
+            data = study1)
+
+sjPlot::tab_model(
+  mod1,
+  show.stat = T,
+  show.loglik = T,
+  show.r2 = F,
+  collapse.ci = T,
+  emph.p = F,
+  string.est = "OR (95% CI)",
+  string.stat = "z",
+  string.p = "p-value",
+  digits.p = 3,
+  order.terms = c(2, 1)
+)
+
+
+```
+
+
+<br>
+
+
+### Table 2
+
+```{r}
+
+study1 %>%
+  select(decision.comb,
+         advice) %>%
+  gtsummary::tbl_summary(by = advice,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+
+```
+
+
+<br>
+
+## Study 2
+
+*Automation bias* 
+
+### Table 3
+
+```{r}
+mod1 <- glm(follow.advice ~ advice.algorithm,
+            family = "binomial",
+            data = study2)
+
+mod2 <- glm(follow.advice ~ advice.algorithm + study,
+            family = "binomial",
+            data = pooled)
+
+
+
+sjPlot::tab_model(
+  mod1,
+  mod2,
+  show.stat = T,
+  show.loglik = T,
+  show.r2 = F,
+  collapse.ci = T,
+  emph.p = F,
+  string.est = "OR (95% CI)",
+  string.stat = "z",
+  string.p = "p-value",
+  digits.p = 3,
+  order.terms = c(2:3, 1)
+)
+
+```
+
+<br>
+
+
+### Table 4
+
+
+**Study 2**
+
+```{r}
+
+study2 %>%
+  select(decision.comb,
+         advice) %>%
+  gtsummary::tbl_summary(by = advice,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+ 
+```
+
+**Studies 1 & 2 (pooled)**
+
+```{r}
+pooled %>% 
+  select(decision.comb,
+         advice) %>% 
+  gtsummary::tbl_summary(by = advice,
+              digits = list(all_categorical() ~ c(0, 1)))%>%
+  gtsummary::modify_header(label ~ "**Teacher selected**
+                (non-renewal of employment)")
+```
+
+<br>
+
+
+*Selective adherence*
+
+### Table 5
+
+```{r}
+mod1 <- glm(
+  follow.advice ~ advice.algorithm+moroccan.teacher.cond.bi.lab,
+  family = "binomial",
+  data = study2.selective
+)
+
+mod2 <- glm(
+  follow.advice ~ advice.algorithm*moroccan.teacher.cond.bi.lab,
+  family = "binomial",
+  data = study2.selective
+)
+
+
+
+sjPlot::tab_model(mod1,mod2, 
+          show.stat = T,
+          show.loglik = T,
+          show.r2 = F,
+          collapse.ci = T,
+          emph.p = F,
+          string.est = "OR (95% CI)",
+          string.stat = "z",
+          string.p = "p-value",
+          digits.p = 3,
+          order.terms = c(2:4,1),
+          show.aic = T)
+
+```
+
+
+<br>
+
+
+### Table 6
+
+**All**
+```{r}
+
+study2.selective %>% 
+  select(moroccan.teacher.cond.bi.lab,
+         decision.comb) %>% 
+  gtsummary::tbl_summary(by = moroccan.teacher.cond.bi.lab,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+
+
+```
+
+**By advice**
+
+```{r}
+
+
+study2.selective %>% 
+  select(decision.comb,
+         advice,
+         moroccan.teacher.cond.bi.lab) %>%   
+  gtsummary::tbl_strata(
+    strata = advice,
+    .tbl_fun =
+      ~ .x %>%
+        gtsummary::tbl_summary(by = moroccan.teacher.cond.bi.lab,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+  )
+```
+
+
+<br>
+
+
+## Study 3
+
+*Automation bias* 
+
+### Table 7
+
+```{r}
+mod1 <- glm(follow.advice ~ advice.algorithm,
+            family = "binomial",
+            data = study3)
+
+
+
+
+
+
+sjPlot::tab_model(
+  mod1,
+  show.stat = T,
+  show.loglik = T,
+  show.r2 = F,
+  collapse.ci = T,
+  emph.p = F,
+  string.est = "OR (95% CI)",
+  string.stat = "z",
+  string.p = "p-value",
+  digits.p = 3,
+  order.terms = c(2, 1)
+)
+
+```
+
+
+<br>
+
+### Table 8
+
+
+
+```{r}
+
+study3 %>%
+  select(decision.comb,
+         advice) %>%
+  gtsummary::tbl_summary(by = advice,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+ 
+```
+
+<br>
+
+
+*Selective adherence*
+
+### Table 9
+
+```{r}
+mod1 <- glm(
+  follow.advice ~ advice.algorithm + moroccan.teacher.cond.bi.lab,
+  family = "binomial",
+  data = study3.selective
+)
+
+mod2 <- glm(
+  follow.advice ~ advice.algorithm * moroccan.teacher.cond.bi.lab,
+  family = "binomial",
+  data = study3.selective
+)
+
+
+
+
+sjPlot::tab_model(
+  mod1,
+  mod2,
+  show.stat = T,
+  show.loglik = T,
+  show.r2 = F,
+  collapse.ci = T,
+  emph.p = F,
+  string.est = "OR (95% CI)",
+  string.stat = "z",
+  string.p = "p-value",
+  digits.p = 3,
+  order.terms = c(2:4, 1),
+  show.aic = T
+)
+
+```
+
+
+<br>
+
+
+### Table 10
+
+**All**
+```{r}
+
+study3.selective %>%
+  select(moroccan.teacher.cond.bi.lab,
+         decision.comb) %>%
+  gtsummary::tbl_summary(by = moroccan.teacher.cond.bi.lab,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+  gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+
+
+```
+
+
+**By advice**
+
+```{r}
+
+study3.selective %>%
+  select(decision.comb,
+         advice,
+         moroccan.teacher.cond.bi.lab) %>%
+  gtsummary::tbl_strata(
+    strata = advice,
+    .tbl_fun =
+      ~ .x %>%
+      gtsummary::tbl_summary(by = moroccan.teacher.cond.bi.lab,
+                         digits = list(all_categorical() ~ c(0, 1)),
+                         label = decision.comb ~ "") %>%
+      gtsummary::modify_header(label ~ "**Teacher selected** (non-renewal of employment)")
+  )
+```
+
+
+<br>
+
+
+## Sample characteristics
+
+```{r}
+t1 <- study1 %>%
+  full_join(study2) %>%
+  full_join(study3) %>%
+  mutate(
+    age_cat = case_when(
+      age <= 25 ~ "18-25",
+      age > 25 & age <= 35 ~ "26-35",
+      age > 35 & age <= 45 ~ "36-45",
+      age > 45 & age <= 55 ~ "46-55",
+      age > 55 & age <= 65 ~ "56-65",
+      age > 65 ~ "65+"
+    )
+  )
+
+
+t1 %>%
+  select(study,
+         female,
+         age,
+         age_cat,
+         high.education) %>%
+  gtsummary::tbl_summary(
+    by = study,
+    statistic = list(all_numeric() ~ "{mean} ({sd})",
+                     all_categorical() ~ "{p}%"),
+    digits = list(all_categorical() ~ c(1),
+                  all_continuous() ~ c(1, 1))
+  )
+```
+
